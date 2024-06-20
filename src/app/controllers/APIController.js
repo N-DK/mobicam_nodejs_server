@@ -1,5 +1,6 @@
 const { Timestamp } = require('mongodb');
 const region = require('../models/Region');
+const { haversineDistance } = require('../../utils');
 
 class APIController {
     constructor() {
@@ -63,9 +64,17 @@ class APIController {
         });
     }
 
+    isPointInCircle(center, r, point) {
+        const [x, y] = center;
+        const x1 = Number(point[0]),
+            y1 = Number(point[1]);
+        const distance = haversineDistance(x, y, x1, y1) * 1000;
+        return distance <= r;
+    }
+
     isPointInBounds(point, bounds) {
-        const x = point[0],
-            y = point[1];
+        const x = Number(point[0]),
+            y = Number(point[1]);
         let inside = false;
         for (let i = 0, j = bounds.length - 1; i < bounds.length; j = i++) {
             const xi = bounds[i][0],
@@ -81,40 +90,11 @@ class APIController {
         return inside;
     }
 
-    // isPointEnteringOrLeaving(point, bounds) {
-    //     try {
-    //         const [minLat, minLng] = bounds[0];
-    //         const [maxLat, maxLng] = bounds[2];
-
-    //         const lat = point[0];
-    //         const lng = point[1];
-
-    //         const isEntering =
-    //             lat >= minLat &&
-    //             lat <= maxLat &&
-    //             lng >= minLng &&
-    //             lng <= maxLng;
-    //         const isLeaving =
-    //             lat < minLat || lat > maxLat || lng < minLng || lng > maxLng;
-
-    //         if (isEntering) {
-    //             console.log(`Điểm ${point} đang đi vào vùng bounds.`);
-    //         } else if (isLeaving) {
-    //             console.log(`Điểm ${point} đang đi ra khỏi vùng bounds.`);
-    //         } else {
-    //             console.log(`Điểm ${point} đang nằm trong vùng bounds.`);
-    //         }
-    //     } catch (error) {
-    //         console.log(error);
-    //     }
-    // }
-
     handleMQTTMessage(topic, message) {
         try {
             if (this.regions.length > 0) {
                 const data = JSON.parse(message.toString());
                 for (const r of this.regions) {
-                    const bounds = r.bounds;
                     const regionIndex = r.vehicles
                         ? r.vehicles.findIndex(
                               (vehicle) => vehicle === data[0]?.vid,
@@ -127,7 +107,14 @@ class APIController {
                                 car.vid === data[0]?.vid &&
                                 car.region_id.equals(r._id),
                         );
-                        const inBounds = this.isPointInBounds(point, bounds);
+                        const inBounds =
+                            r.type === 'circle'
+                                ? this.isPointInCircle(
+                                      r.center,
+                                      r.radius,
+                                      point,
+                                  )
+                                : this.isPointInBounds(point, r.bounds);
                         if (this.cars.length === 0 || carIndex === -1) {
                             this.cars.push({
                                 region_id: r._id,
@@ -168,6 +155,7 @@ class APIController {
                             car.state = inBounds;
                         }
                     }
+                    console.log(this.cars);
                 }
             }
         } catch (error) {}
