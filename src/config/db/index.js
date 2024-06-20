@@ -1,8 +1,13 @@
 const { connectToMongo } = require('./connect');
 
+let db;
+
+const initializeDB = async () => {
+    db = await connectToMongo();
+};
+
 const query = async (collectionName, query, callback) => {
     try {
-        const db = await connectToMongo();
         const collection = db.collection(collectionName);
         const docs = await collection.find(query).toArray();
         callback(null, docs);
@@ -14,7 +19,6 @@ const query = async (collectionName, query, callback) => {
 
 const insert = async (collectionName, document, callback) => {
     try {
-        const db = await connectToMongo();
         const collection = db.collection(collectionName);
         const result = await collection.insertOne(document);
         callback(null, result);
@@ -24,4 +28,4 @@ const insert = async (collectionName, document, callback) => {
     }
 };
 
-module.exports = { query, insert };
+module.exports = { query, insert, initializeDB };

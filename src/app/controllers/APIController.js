@@ -1,15 +1,18 @@
+const { Timestamp } = require('mongodb');
 const region = require('../models/Region');
 
 class APIController {
     constructor() {
         this.regions = [];
         this.get = this.get.bind(this);
+        this.userId = null;
         this.cars = [];
     }
 
     // [GET] /region/get
     get(req, res, next) {
         const userId = req?.body?.userId;
+        this.userId = userId;
         region.getRegion(userId, (err, results) => {
             if (err) {
                 console.log(err);
@@ -18,7 +21,7 @@ class APIController {
                 });
             } else {
                 this.regions = results;
-                res.json({ result: results });
+                res.json({ result: 1, data: results });
             }
         });
     }
@@ -33,7 +36,7 @@ class APIController {
                     error: 'An error occurred while fetching records',
                 });
             } else {
-                res.json({ result: results });
+                res.json({ result: 1, data: results });
             }
         });
     }
@@ -78,79 +81,94 @@ class APIController {
         return inside;
     }
 
+    // isPointEnteringOrLeaving(point, bounds) {
+    //     try {
+    //         const [minLat, minLng] = bounds[0];
+    //         const [maxLat, maxLng] = bounds[2];
+
+    //         const lat = point[0];
+    //         const lng = point[1];
+
+    //         const isEntering =
+    //             lat >= minLat &&
+    //             lat <= maxLat &&
+    //             lng >= minLng &&
+    //             lng <= maxLng;
+    //         const isLeaving =
+    //             lat < minLat || lat > maxLat || lng < minLng || lng > maxLng;
+
+    //         if (isEntering) {
+    //             console.log(`Điểm ${point} đang đi vào vùng bounds.`);
+    //         } else if (isLeaving) {
+    //             console.log(`Điểm ${point} đang đi ra khỏi vùng bounds.`);
+    //         } else {
+    //             console.log(`Điểm ${point} đang nằm trong vùng bounds.`);
+    //         }
+    //     } catch (error) {
+    //         console.log(error);
+    //     }
+    // }
+
     handleMQTTMessage(topic, message) {
         try {
             if (this.regions.length > 0) {
                 const data = JSON.parse(message.toString());
-                this.regions.forEach((region) => {
-                    const bounds = region.bounds;
-                    if (
-                        region.vehicles.findIndex(
-                            (vehicle) => vehicle === data[0]?.vid,
-                        ) !== -1
-                    ) {
+                for (const r of this.regions) {
+                    const bounds = r.bounds;
+                    const regionIndex = r.vehicles
+                        ? r.vehicles.findIndex(
+                              (vehicle) => vehicle === data[0]?.vid,
+                          )
+                        : -1;
+                    if (regionIndex !== -1) {
                         const point = data[0].gps.split(',');
-                        if (
-                            this.cars.length === 0 ||
-                            this.cars.findIndex(
-                                (car) =>
-                                    car.vid === data[0]?.vid &&
-                                    car.region_id === region._id,
-                            ) === -1
-                        ) {
+                        const carIndex = this.cars.findIndex(
+                            (car) =>
+                                car.vid === data[0]?.vid &&
+                                car.region_id.equals(r._id),
+                        );
+                        const inBounds = this.isPointInBounds(point, bounds);
+                        if (this.cars.length === 0 || carIndex === -1) {
                             this.cars.push({
-                                region_id: region._id,
-                                region_name: region.name,
+                                region_id: r._id,
+                                region_name: r.name,
                                 vid: data[0]?.vid,
-                                v_name: data[0]?.vid,
-                                state: this.isPointInBounds(point, bounds),
+                                dev_id: data[0]?.id,
+                                state: inBounds,
                             });
                         } else {
-                            let index = this.cars.findIndex(
-                                (car) =>
-                                    car.vid === data[0]?.vid &&
-                                    car.region_id === region._id,
-                            );
+                            const car = this.cars[carIndex];
+                            const { state, ...carWithoutState } = car;
+                            const record = {
+                                ...carWithoutState,
+                                create_time: new Date().getTime(),
+                                update_time: new Date().getTime(),
+                                in_time: null,
+                                out_time: null,
+                                userId: this.userId,
+                                isDelete: false,
+                            };
                             if (
-                                !this.cars[index].state &&
-                                this.isPointInBounds(point, bounds) &&
-                                this.cars[index].region_id === region._id
+                                !car.state &&
+                                inBounds &&
+                                car.region_id.equals(r._id)
                             ) {
-                                console.log(
-                                    `Xe ${this.cars[index].vid} đi vào ${region.name}`,
-                                );
+                                record.in_time = new Date().getTime();
+                                console.log(`Xe ${car.vid} đi vào ${r.name}`);
+                                region.addRecord({ ...record }, () => {});
                             } else if (
-                                this.cars[index].state &&
-                                !this.isPointInBounds(point, bounds) &&
-                                this.cars[index].region_id === region._id
+                                car.state &&
+                                !inBounds &&
+                                car.region_id.equals(r._id)
                             ) {
-                                console.log(
-                                    `Xe ${this.cars[index].vid} đi ra ${region.name}`,
-                                );
+                                record.out_time = new Date().getTime();
+                                region.addRecord({ ...record }, () => {});
+                                console.log(`Xe ${car.vid} đi ra ${r.name}`);
                             }
-                            this.cars[index].state = this.isPointInBounds(
-                                point,
-                                bounds,
-                            );
+                            car.state = inBounds;
                         }
-                        // console.log(this.cars);
-                        // this.cars.push({
-
-                        // })
-                        // if (this.isPointInBounds(point, bounds)) {
-                        //     console.log(
-                        //         `Xe ${data[0]?.vid} đang nằm trong vùng ${region.name}`,
-                        //     );
-                        // } else {
-                        //     console.log(
-                        //         `Xe ${data[0]?.vid} đang nằm ngoài vùng ${region.name}`,
-                        //     );
-                        // }
                     }
-                });
-                // tạo một mảng add các xe vào
-                // if trạng thái ra vào của xe thay đổi xe add vào record và cập nhập lại trạng thái của xe
-                // record: {id, region_id, create_time, update_time, isDeleted, in_time, out_time, vid, v_name}
+                }
             }
         } catch (error) {}
     }

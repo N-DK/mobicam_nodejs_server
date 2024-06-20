@@ -2,13 +2,13 @@ const express = require('express');
 const app = express();
 const port = 3000;
 const MQTTService = require('./service/mqttService');
-
 const route = require('./routes');
 
 var cors = require('cors');
 require('dotenv').config();
 
 var bodyParser = require('body-parser');
+const { initializeDB } = require('./config/db');
 
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -29,10 +29,17 @@ app.use(function (req, res, next) {
     next();
 });
 
+// Connect DB
+const connectDB = async () => {
+    try {
+        await initializeDB();
+    } catch (error) {}
+};
+connectDB();
+
+// Connect MQTT
 const mqttService = new MQTTService(process.env.MQTT_HOST);
-
 mqttService.connect();
-
 mqttService.subscribe('live/status');
 
 route(app);
