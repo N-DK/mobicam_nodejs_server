@@ -1,4 +1,4 @@
-const { Timestamp } = require('mongodb');
+const { ObjectId } = require('mongodb');
 const region = require('../models/Region');
 const { haversineDistance } = require('../../utils');
 
@@ -49,15 +49,63 @@ class APIController {
             return res.status(400).json({ error: 'payload is required' });
         }
 
-        region.addRegion({ ...data }, (err, result) => {
+        region.addRegion(
+            { ...data, create_time: Date.now(), update_time: Date.now() },
+            (err, result) => {
+                if (err) {
+                    console.log(err);
+                    return res.status(500).json({
+                        error: 'An error occurred while adding the region',
+                    });
+                } else {
+                    res.status(201).json({
+                        message: 'Region added successfully',
+                        result: result,
+                    });
+                }
+            },
+        );
+    }
+    // [PATCH] /region/delete?id=
+    delete(req, res, next) {
+        let _id = req?.query?.id;
+        if (!_id) {
+            return res.status(400).json({ error: 'Error 400!' });
+        }
+
+        _id = new ObjectId(_id);
+
+        region.deleteRegion(_id, (err, result) => {
             if (err) {
                 console.log(err);
                 return res.status(500).json({
-                    error: 'An error occurred while adding the region',
+                    error: 'Error 500!',
                 });
             } else {
-                res.status(201).json({
-                    message: 'Region added successfully',
+                res.status(200).json({
+                    message: 'Region delete successfully',
+                    result: result,
+                });
+            }
+        });
+    }
+    // [PATCH] /region/edit
+    edit(req, res, next) {
+        const data = req?.body;
+        if (!data) {
+            return res.status(400).json({ error: 'Error 400!' });
+        }
+
+        let { _id, ...updateData } = data;
+
+        _id = new ObjectId(_id);
+
+        region.updateRegion(_id, { ...updateData }, (err, result) => {
+            if (err) {
+                return res.status(500).json({ error: 'Error 500!' });
+            } else {
+                return res.status(200).json({
+                    message: 'Region update successfully',
                     result: result,
                 });
             }
@@ -138,24 +186,27 @@ class APIController {
                             if (
                                 !car.state &&
                                 inBounds &&
-                                car.region_id.equals(r._id)
+                                car.region_id.equals(r._id) &&
+                                Number(r.isInWarning) === 1
                             ) {
                                 record.in_time = new Date().getTime();
+                                record.region_name = r.name;
                                 console.log(`Xe ${car.vid} đi vào ${r.name}`);
                                 region.addRecord({ ...record }, () => {});
                             } else if (
                                 car.state &&
                                 !inBounds &&
-                                car.region_id.equals(r._id)
+                                car.region_id.equals(r._id) &&
+                                Number(r.isOutWarning) === 1
                             ) {
                                 record.out_time = new Date().getTime();
+                                record.region_name = r.name;
                                 region.addRecord({ ...record }, () => {});
                                 console.log(`Xe ${car.vid} đi ra ${r.name}`);
                             }
                             car.state = inBounds;
                         }
                     }
-                    console.log(this.cars);
                 }
             }
         } catch (error) {}

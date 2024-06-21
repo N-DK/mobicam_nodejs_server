@@ -28,4 +28,25 @@ const insert = async (collectionName, document, callback) => {
     }
 };
 
-module.exports = { query, insert, initializeDB };
+const update = async (
+    collectionName,
+    query,
+    updateData,
+    options = {},
+    callback,
+) => {
+    try {
+        const collection = db.collection(collectionName);
+        const result = await collection.updateOne(
+            query,
+            { $set: updateData },
+            options,
+        );
+        callback(null, result);
+    } catch (err) {
+        console.log(err);
+        callback(err);
+    }
+};
+
+module.exports = { query, insert, initializeDB, update };

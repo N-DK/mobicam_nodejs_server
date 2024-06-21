@@ -1,4 +1,4 @@
-const { query, insert } = require('../../config/db');
+const { query, insert, update } = require('../../config/db');
 
 const region = {
     getRegion: (userId, callback) => {
@@ -14,6 +14,30 @@ const region = {
     },
     addRegion: (data, callback) => {
         return insert('region', data, callback);
+    },
+    deleteRegion: (_id, callback) => {
+        return update(
+            'region',
+            { _id: _id },
+            { isDelete: true, update_time: Date.now() },
+            {},
+            (err, result) => {
+                if (err) return callback(err);
+                callback(null, result);
+            },
+        );
+    },
+    updateRegion: (_id, data, callback) => {
+        return update(
+            'region',
+            { _id },
+            { ...data, update_time: Date.now() },
+            {},
+            (err, result) => {
+                if (err) return callback(err);
+                callback(null, result);
+            },
+        );
     },
     addRecord: (data, callback) => {
         return insert('record', data, callback);
