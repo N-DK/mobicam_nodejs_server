@@ -4,6 +4,7 @@ const { haversineDistance } = require('../../utils');
 
 class APIController {
     constructor() {
+        this.io;
         this.regions = [];
         this.get = this.get.bind(this);
         this.userId = null;
@@ -112,6 +113,10 @@ class APIController {
         });
     }
 
+    setIo(io) {
+        this.io = io;
+    }
+
     isPointInCircle(center, r, point) {
         const [x, y] = center;
         const x1 = Number(point[0]),
@@ -191,6 +196,7 @@ class APIController {
                             ) {
                                 record.in_time = new Date().getTime();
                                 record.region_name = r.name;
+                                this.io.emit('warning', this.userId);
                                 console.log(`Xe ${car.vid} đi vào ${r.name}`);
                                 region.addRecord({ ...record }, () => {});
                             } else if (
@@ -202,6 +208,7 @@ class APIController {
                                 record.out_time = new Date().getTime();
                                 record.region_name = r.name;
                                 region.addRecord({ ...record }, () => {});
+                                this.io.emit('warning', this.userId);
                                 console.log(`Xe ${car.vid} đi ra ${r.name}`);
                             }
                             car.state = inBounds;

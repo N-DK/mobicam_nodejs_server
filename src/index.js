@@ -4,11 +4,16 @@ const port = 3000;
 const MQTTService = require('./service/mqttService');
 const route = require('./routes');
 
+const http = require('http');
+
+const api = require('./app/controllers/APIController');
+
 var cors = require('cors');
 require('dotenv').config();
 
 var bodyParser = require('body-parser');
 const { initializeDB } = require('./config/db');
+const { initialize, getIo } = require('./service/socketService');
 
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -42,8 +47,13 @@ const mqttService = new MQTTService(process.env.MQTT_HOST);
 mqttService.connect();
 mqttService.subscribe('live/status');
 
+// Connect socket
+const server = http.createServer(app);
+initialize(server);
+
 route(app);
 
-app.listen(port, () => {
+server.listen(port, () => {
     console.log(`Example app listening on port ${port}`);
+    api.setIo(getIo());
 });
