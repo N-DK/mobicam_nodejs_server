@@ -43,9 +43,9 @@ const connectDB = async () => {
 connectDB();
 
 // Connect MQTT
-const mqttService = new MQTTService(process.env.MQTT_HOST);
-mqttService.connect();
-mqttService.subscribe('live/status');
+// const mqttService = new MQTTService(process.env.MQTT_HOST);
+// mqttService.connect();
+// mqttService.subscribe('live/status');
 
 // Connect socket
 const server = http.createServer(app);
@@ -55,5 +55,5 @@ route(app);
 
 server.listen(port, () => {
     console.log(`Example app listening on port ${port}`);
-    api.setIo(getIo());
+    // api.setIo(getIo());
 });

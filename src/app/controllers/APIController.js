@@ -1,6 +1,6 @@
 const { ObjectId } = require('mongodb');
 const region = require('../models/Region');
-const { haversineDistance } = require('../../utils');
+const { isPointInCircle, isPointInBounds } = require('../../utils');
 
 class APIController {
     constructor() {
@@ -117,32 +117,6 @@ class APIController {
         this.io = io;
     }
 
-    isPointInCircle(center, r, point) {
-        const [x, y] = center;
-        const x1 = Number(point[0]),
-            y1 = Number(point[1]);
-        const distance = haversineDistance(x, y, x1, y1) * 1000;
-        return distance <= r;
-    }
-
-    isPointInBounds(point, bounds) {
-        const x = Number(point[0]),
-            y = Number(point[1]);
-        let inside = false;
-        for (let i = 0, j = bounds.length - 1; i < bounds.length; j = i++) {
-            const xi = bounds[i][0],
-                yi = bounds[i][1];
-            const xj = bounds[j][0],
-                yj = bounds[j][1];
-
-            const intersect =
-                yi > y !== yj > y &&
-                x < ((xj - xi) * (y - yi)) / (yj - yi) + xi;
-            if (intersect) inside = !inside;
-        }
-        return inside;
-    }
-
     handleMQTTMessage(topic, message) {
         try {
             if (this.regions.length > 0) {
@@ -162,12 +136,8 @@ class APIController {
                         );
                         const inBounds =
                             r.type === 'circle'
-                                ? this.isPointInCircle(
-                                      r.center,
-                                      r.radius,
-                                      point,
-                                  )
-                                : this.isPointInBounds(point, r.bounds);
+                                ? isPointInCircle(r.center, r.radius, point)
+                                : isPointInBounds(point, r.bounds);
                         if (this.cars.length === 0 || carIndex === -1) {
                             this.cars.push({
                                 region_id: r._id,
@@ -196,7 +166,7 @@ class APIController {
                             ) {
                                 record.in_time = new Date().getTime();
                                 record.region_name = r.name;
-                                this.io.emit('warning', this.userId);
+                                // this.io.emit('warning', this.userId);
                                 console.log(`Xe ${car.vid} đi vào ${r.name}`);
                                 region.addRecord({ ...record }, () => {});
                             } else if (
@@ -208,7 +178,7 @@ class APIController {
                                 record.out_time = new Date().getTime();
                                 record.region_name = r.name;
                                 region.addRecord({ ...record }, () => {});
-                                this.io.emit('warning', this.userId);
+                                // this.io.emit('warning', this.userId);
                                 console.log(`Xe ${car.vid} đi ra ${r.name}`);
                             }
                             car.state = inBounds;
@@ -218,6 +188,9 @@ class APIController {
             }
         } catch (error) {}
     }
+    // check nhiều đường cao tốc
+    // đường cao tốc sẽ chứa các nodes và node sẽ là những region
+    // Khi nào xe đi vào region sẽ báo đi vào đường cao tốc
 }
 
 module.exports = new APIController();
