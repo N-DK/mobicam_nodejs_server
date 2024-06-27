@@ -1,0 +1,15 @@
+How to Use
+
+1. import: 
+const midHighway = require("./src/modules/mid_highway");
+
+2. Init (one time)
+midHighway.init();
+
+3. Track:
+
+ex: 
+midHighway.track("warning", (data) => {
+  console.log("track", data);
+});
+

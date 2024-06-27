@@ -1,12 +1,9 @@
 const express = require('express');
 const app = express();
 const port = 3000;
-const MQTTService = require('./service/mqttService');
 const route = require('./routes');
 
 const http = require('http');
-
-const api = require('./app/controllers/APIController');
 
 var cors = require('cors');
 require('dotenv').config();

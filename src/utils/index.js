@@ -1,3 +1,6 @@
+const turf = require('@turf/turf');
+const geolib = require('geolib');
+
 const haversineDistance = (lat1, lon1, lat2, lon2) => {
     const toRad = (angle) => angle * (Math.PI / 180);
 
@@ -41,4 +44,96 @@ function isPointInBounds(point, bounds) {
     return inside;
 }
 
-module.exports = { haversineDistance, isPointInCircle, isPointInBounds };
+// function isPointInHighway(point, regions) {
+//     for (const region of regions) {
+//         // Đảo ngược tọa độ từ [latitude, longitude] sang [longitude, latitude]
+//         // console.log(region.bufferedGeometry.geometry.coordinates);
+//         const coordinates = region.bufferedGeometry.geometry.coordinates[0].map(
+//             (geo) => ({
+//                 latitude: geo[0],
+//                 longitude: geo[1],
+//             }),
+//         );
+//         console.log(coordinates);
+//         if (
+//             geolib.isPointInPolygon(
+//                 { latitude: point[0], longitude: point[1] },
+//                 coordinates,
+//             )
+//         ) {
+//             return true;
+//         }
+//     }
+//     return false;
+// }
+
+// function isPointInHighway(point, region) {
+//     const pt = turf.point(point);
+//     const line = turf.lineString(region.geometry);
+//     return turf.booleanPointOnLine(pt, line, { epsilon: 1e-6 });
+// }
+
+// function isPointInHighway(point, regions) {
+//     const pt = turf.point(point);
+//     for (const region of regions) {
+//         if (turf.booleanPointInPolygon(pt, region.bufferedGeometry)) {
+//             return true;
+//         }
+//     }
+//     return false;
+// }
+
+function isPointInHighway(point, regions) {
+    const pt = turf.point(point);
+    for (const region of regions) {
+        const line = turf.lineString(region.buffer_geometry);
+        if (turf.booleanPointOnLine(pt, line, { epsilon: 1e-6 })) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// function isPointInHighway(point, regions) {
+//     const pt = turf.point(point);
+
+//     for (const region of regions) {
+//         const line = turf.lineString(region.geometry);
+
+//         // Sử dụng hộp bao quanh (bounding box) để kiểm tra nhanh trước
+//         const bbox = turf.bbox(line);
+//         const bboxPolygon = turf.bboxPolygon(bbox);
+//         if (!turf.booleanPointInPolygon(pt, bboxPolygon)) {
+//             continue;
+//         }
+
+//         // Tạo vùng đệm và kiểm tra điểm
+//         const bufferedLine = turf.buffer(line, 10, { units: 'meters' });
+//         if (turf.booleanPointInPolygon(pt, bufferedLine)) {
+//             return true;
+//         }
+//     }
+
+//     return false;
+// }
+
+// highway_super
+// function isPointInHighway(point, highways) {
+//     const pt = turf.point([point[1], point[0]]);
+//     for (const highway of highways) {
+//         const line = turf.lineString(
+//             highway.geometry.map((coord) => [coord.lon, coord.lat]),
+//         );
+//         if (turf.booleanPointOnLine(pt, line, { epsilon: 5e-8 })) {
+//             return true;
+//         }
+//     }
+//     return false;
+// }
+
+module.exports = {
+    haversineDistance,
+    isPointInCircle,
+    isPointInBounds,
+    isPointInHighway,
+};

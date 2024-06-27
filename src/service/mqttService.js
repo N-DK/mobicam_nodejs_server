@@ -2,6 +2,7 @@ const mqtt = require('mqtt');
 const apiController = require('../app/controllers/APIController');
 const { warningHighWay } = require('../modules/warningHighWay');
 const highway = require('../app/models/Highway');
+const turf = require('@turf/turf');
 
 require('dotenv').config();
 
@@ -27,6 +28,22 @@ class MQTTService {
                 });
             });
             this.highways = results; // Lưu trữ kết quả vào đối tượng
+            // Tạo vùng đệm cho các đoạn đường cao tốc
+            // const bufferedHighways = results.map((highway) => ({
+            //     ...highway,
+            //     regions: highway.regions.map((region) => {
+            //         const line = turf.lineString(region.geometry);
+            //         const bufferedLine = turf.buffer(line, 8, {
+            //             units: 'meters',
+            //         });
+            //         return {
+            //             ...region,
+            //             bufferedGeometry: bufferedLine,
+            //         };
+            //     }),
+            // }));
+            // Lưu trữ kết quả vào đối tượng
+            // this.highways = bufferedHighways;
         } catch (error) {
             console.error(error);
         }
